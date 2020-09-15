@@ -1,19 +1,19 @@
 pragma solidity >=0.5.16;
 
 import "./interfaces/ISmartSwapFactory.sol";
-import "./SmartSwapPair.sol";
+import "./SmartSwapPool.sol";
 
 contract SmartSwapFactory is ISmartSwapFactory {
     address public override feeTo;
     address public override feeToSetter;
 
-    mapping(address => mapping(address => address)) public override getPair;
-    address[] public override allPairs;
+    mapping(address => mapping(address => address)) public override getPool;
+    address[] public override allPools;
 
-    event PairCreated(
+    event PoolCreated(
         address indexed token0,
         address indexed token1,
-        address pair,
+        address pool,
         uint256
     );
 
@@ -21,14 +21,14 @@ contract SmartSwapFactory is ISmartSwapFactory {
         feeToSetter = _feeToSetter;
     }
 
-    function allPairsLength() external override view returns (uint256) {
-        return allPairs.length;
+    function allPoolsLength() external override view returns (uint256) {
+        return allPools.length;
     }
 
-    function createPair(address tokenA, address tokenB)
+    function createPool(address tokenA, address tokenB)
         external
         override
-        returns (address pair)
+        returns (address pool)
     {
         require(tokenA != tokenB, "SmartSwap: IDENTICAL_ADDRESSES");
         (address token0, address token1) = tokenA < tokenB
@@ -36,19 +36,19 @@ contract SmartSwapFactory is ISmartSwapFactory {
             : (tokenB, tokenA);
         require(token0 != address(0), "SmartSwap: ZERO_ADDRESS");
         require(
-            getPair[token0][token1] == address(0),
-            "SmartSwap: PAIR_EXISTS"
+            getPool[token0][token1] == address(0),
+            "SmartSwap: POOL_EXISTS"
         ); // single check is sufficient
-        bytes memory bytecode = type(SmartSwapPair).creationCode;
+        bytes memory bytecode = type(SmartSwapPool).creationCode;
         bytes32 salt = keccak256(abi.encodePacked(token0, token1));
         assembly {
-            pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
+            pool := create2(0, add(bytecode, 32), mload(bytecode), salt)
         }
-        ISmartSwapPair(pair).initialize(token0, token1);
-        getPair[token0][token1] = pair;
-        getPair[token1][token0] = pair; // populate mapping in the reverse direction
-        allPairs.push(pair);
-        emit PairCreated(token0, token1, pair, allPairs.length);
+        ISmartSwapPool(pool).initialize(token0, token1);
+        getPool[token0][token1] = pool;
+        getPool[token1][token0] = pool; // populate mapping in the reverse direction
+        allPools.push(pool);
+        emit PoolCreated(token0, token1, pool, allPools.length);
     }
 
     function setFeeTo(address _feeTo) external override {

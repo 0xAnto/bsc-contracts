@@ -1,6 +1,6 @@
 pragma solidity >=0.5.0;
 
-interface ISmartSwapPair {
+interface ISmartSwapPool {
     event Mint(address indexed sender, uint256 amount0, uint256 amount1);
     event Burn(
         address indexed sender,

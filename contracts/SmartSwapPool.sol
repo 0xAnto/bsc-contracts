@@ -1,6 +1,6 @@
 pragma solidity ^0.6.0;
 
-import "./interfaces/ISmartSwapPair.sol";
+import "./interfaces/ISmartSwapPool.sol";
 import "./BEP20.sol";
 import "./lib/Math.sol";
 import "./lib/UQ112x112.sol";
@@ -8,7 +8,7 @@ import "./interfaces/IBEP20.sol";
 import "./interfaces/ISmartSwapFactory.sol";
 import "./interfaces/ISmartSwapCallee.sol";
 
-contract SmartSwapPair is ISmartSwapPair, BEP20 {
+contract SmartSwapPool is ISmartSwapPool, BEP20 {
     using SafeMath for uint256;
     using UQ112x112 for uint224;
 
@@ -83,7 +83,7 @@ contract SmartSwapPair is ISmartSwapPair, BEP20 {
     );
     event Sync(uint112 reserve0, uint112 reserve1);
 
-    constructor() public BEP20("Smart Swap Pool(Pair)", "SSLP") {
+    constructor() public BEP20("Smart Swap Pool", "SSLP") {
         factory = msg.sender;
     }
 
