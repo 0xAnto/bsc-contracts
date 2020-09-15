@@ -15,7 +15,8 @@
         "t:compile": "truffle compile && typechain --target=truffle --outDir build/types/truffle-types \"build/contracts/*.json\"",
         "t:migrate": "truffle migrate",
         "g:start": "ganache-cli --deterministic",
-        "o:compile": "oz compile --solc-version=0.6.6 --optimizer on"
+        "o:compile": "oz compile --solc-version=0.6.6 --optimizer on",
+        "t:flattener": "truffle-flattener"
     },
     "author": "",
     "license": "ISC",
