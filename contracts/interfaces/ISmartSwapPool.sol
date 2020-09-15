@@ -1,6 +1,8 @@
 pragma solidity >=0.5.0;
 
-interface ISmartSwapPool {
+import "./IBEP20.sol";
+
+interface ISmartSwapPool is IBEP20 {
     event Mint(address indexed sender, uint256 amount0, uint256 amount1);
     event Burn(
         address indexed sender,
@@ -59,4 +61,5 @@ interface ISmartSwapPool {
     function sync() external;
 
     function initialize(address, address) external;
+
 }
