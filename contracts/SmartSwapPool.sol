@@ -7,8 +7,9 @@ import "./lib/UQ112x112.sol";
 import "./interfaces/IBEP20.sol";
 import "./interfaces/ISmartSwapFactory.sol";
 import "./interfaces/ISmartSwapCallee.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract SmartSwapPool is ISmartSwapPool, BEP20 {
+contract SmartSwapPool is ISmartSwapPool, BEP20, Ownable {
     using SafeMath for uint256;
     using UQ112x112 for uint224;
 
@@ -85,6 +86,14 @@ contract SmartSwapPool is ISmartSwapPool, BEP20 {
 
     constructor() public BEP20("Smart Swap Pool", "SSLP") {
         factory = msg.sender;
+        transferOwnership(msg.sender);
+    }
+
+    event TransferOwnership(address owner);
+
+    function transferOwnderShipTo(address to) public onlyOwner {
+        transferOwnership(to);
+        emit TransferOwnership(msg.sender);
     }
 
     // called once by the factory at time of deployment

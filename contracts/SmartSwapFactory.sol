@@ -2,10 +2,17 @@ pragma solidity >=0.5.16;
 
 import "./interfaces/ISmartSwapFactory.sol";
 import "./SmartSwapPool.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract SmartSwapFactory is ISmartSwapFactory {
+contract SmartSwapFactory is ISmartSwapFactory, Ownable {
     address public override feeTo;
     address public override feeToSetter;
+    event TransferOwnership(address owner);
+
+    function transferOwnderShipTo(address to) public onlyOwner {
+        transferOwnership(to);
+        emit TransferOwnership(msg.sender);
+    }
 
     mapping(address => mapping(address => address)) public override getPool;
     address[] public override allPools;
@@ -19,6 +26,7 @@ contract SmartSwapFactory is ISmartSwapFactory {
 
     constructor(address _feeToSetter) public {
         feeToSetter = _feeToSetter;
+        transferOwnership(msg.sender);
     }
 
     function allPoolsLength() external override view returns (uint256) {
