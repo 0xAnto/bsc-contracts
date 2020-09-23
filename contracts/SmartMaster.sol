@@ -53,13 +53,13 @@ contract SmartMaster is Ownable {
     );
 
     constructor(
-        SmartSwapToken _token,
+        address _tokenAddress,
         address _devaddr,
         uint256 _tokenPerBlock,
         uint256 _startBlock,
         uint256 _bonusEndBlock
     ) public {
-        tokenContract = _token;
+        tokenContract = SmartSwapToken(_tokenAddress);
         devaddr = _devaddr;
         tokenPerBlock = _tokenPerBlock;
         bonusEndBlock = _bonusEndBlock;
@@ -74,7 +74,7 @@ contract SmartMaster is Ownable {
     // XXX DO NOT add the same LP token more than once. Rewards will be messed up if you do.
     function add(
         uint256 _allocPoint,
-        IBEP20 _lpToken,
+        address _lpTokenAddress,
         bool _withUpdate
     ) public onlyOwner {
         if (_withUpdate) {
@@ -86,7 +86,7 @@ contract SmartMaster is Ownable {
         totalAllocPoint = totalAllocPoint.add(_allocPoint);
         poolInfo.push(
             PoolInfo({
-                lpToken: _lpToken,
+                lpToken: IBEP20(_lpTokenAddress),
                 alloctionPoint: _allocPoint,
                 lastRewardBlock: lastRewardBlock,
                 accTokenPerShare: 0
@@ -128,8 +128,8 @@ contract SmartMaster is Ownable {
         }
     }
 
-    // View function to see pending sswaps on frontend.
-    function pendingsswap(uint256 _pid, address _user)
+    // View function to see pending token on frontend.
+    function pendingToken(uint256 _pid, address _user)
         external
         view
         returns (uint256)
@@ -197,7 +197,7 @@ contract SmartMaster is Ownable {
                 .mul(pool.accTokenPerShare)
                 .div(1e12)
                 .sub(user.rewardDebt);
-            safesswapTransfer(msg.sender, pending);
+            safeTokenTransfer(msg.sender, pending);
         }
         pool.lpToken.safeTransferFrom(
             address(msg.sender),
@@ -218,7 +218,7 @@ contract SmartMaster is Ownable {
         uint256 pending = user.amount.mul(pool.accTokenPerShare).div(1e12).sub(
             user.rewardDebt
         );
-        safesswapTransfer(msg.sender, pending);
+        safeTokenTransfer(msg.sender, pending);
         user.amount = user.amount.sub(_amount);
         user.rewardDebt = user.amount.mul(pool.accTokenPerShare).div(1e12);
         pool.lpToken.safeTransfer(address(msg.sender), _amount);
@@ -236,10 +236,10 @@ contract SmartMaster is Ownable {
     }
 
     // Safe sswap transfer function, just in case if rounding error causes pool to not have enough sswaps.
-    function safesswapTransfer(address _to, uint256 _amount) internal {
-        uint256 sswapBal = tokenContract.balanceOf(address(this));
-        if (_amount > sswapBal) {
-            tokenContract.transfer(_to, sswapBal);
+    function safeTokenTransfer(address _to, uint256 _amount) internal {
+        uint256 tokenBal = tokenContract.balanceOf(address(this));
+        if (_amount > tokenBal) {
+            tokenContract.transfer(_to, tokenBal);
         } else {
             tokenContract.transfer(_to, _amount);
         }
