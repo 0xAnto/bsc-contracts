@@ -10,7 +10,7 @@ import "../lib/SafeBEP20.sol";
 interface ISSWAPToken is IBEP20 {
     function mint(address to, uint256 amt) external;
 
-    function burn(address from, uint256 amt) external;
+    function burnFrom(address from, uint256 amt) external;
 }
 
 // 本交换池仅支持bsc链上的 USDT，DAI，BUSD 兑换
@@ -281,20 +281,18 @@ contract StableSwapPool is
         require(is_killed != true, "is killed");
         uint256[] memory fees = new uint256[](N_COINS);
         uint256 _fee = fee.mul(N_COINS).div(uint256(4 * (N_COINS - 1)));
-        uint256 _admin_fee = admin_fee;
         uint256 amp = _A();
 
-        uint256 token_supply = token.totalSupply();
         // # Initial invariant
         uint256 D0 = 0;
         uint256[] memory old_balances = balances;
-        if (token_supply > 0) {
+        if (token.totalSupply() > 0) {
             D0 = get_D_mem(old_balances, amp);
         }
         uint256[] memory new_balances = old_balances;
         for (uint256 i = 0; i < coins.length; i++) {
             uint256 in_amount = amounts[i];
-            if (token_supply == 0) {
+            if (token.totalSupply() == 0) {
                 require(in_amount > 0, "initial deposit requires all coins"); // # dev: initial deposit requires all coins
             }
             address in_coin = coins[i];
@@ -324,7 +322,7 @@ contract StableSwapPool is
         // # We need to recalculate the invariant accounting for fees
         // # to calculate fair user's share
         uint256 D2 = D1;
-        if (token_supply > 0) {
+        if (token.totalSupply() > 0) {
             for (uint256 i = 0; i < coins.length; i++) {
                 uint256 ideal_balance = D1.mul(old_balances[i]).div(D0);
                 uint256 difference = 0;
@@ -335,7 +333,7 @@ contract StableSwapPool is
                 }
                 fees[i] = _fee.mul(difference).div(FEE_DENOMINATOR);
                 balances[i] = new_balances[i].sub(
-                    fees[i].mul(_admin_fee).div(FEE_DENOMINATOR)
+                    fees[i].mul(admin_fee).div(FEE_DENOMINATOR)
                 );
                 new_balances[i] -= fees[i];
             }
@@ -345,10 +343,10 @@ contract StableSwapPool is
         }
         // # Calculate, how much pool tokens to mint
         uint256 mint_amount = 0;
-        if (token_supply == 0) {
+        if (token.totalSupply() == 0) {
             mint_amount = D1; //# Take the dust if there was any
         } else {
-            mint_amount = token_supply.mul(D2.sub(D0)).div(D0);
+            mint_amount = token.totalSupply().mul(D2.sub(D0)).div(D0);
         }
 
         require(mint_amount >= min_mint_amount, "Slippage screwed you");
@@ -361,7 +359,7 @@ contract StableSwapPool is
             amounts,
             fees,
             D1,
-            token_supply + mint_amount
+            token.totalSupply() + mint_amount
         );
     }
 
@@ -398,12 +396,14 @@ contract StableSwapPool is
             c = c.mul(D).div(_x.mul(uint256(N_COINS)));
         }
         c = c.mul(D).div(Ann.mul(N_COINS));
-        uint256 b = S_.add(D.div(Ann)); //# - D
+        // uint256 b = S_.add(D.div(Ann)); //# - D
         uint256 y_prev = 0;
         y = D;
         for (uint256 _i = 0; i < 255; _i++) {
             y_prev = y;
-            y = y.mul(y).add(c).div(y.mul(uint256(2)).add(b).sub(D));
+            y = y.mul(y).add(c).div(
+                y.mul(uint256(2)).add(S_.add(D.div(Ann))).sub(D)
+            );
             // # Equality with the precision of 1
             if (y > y_prev) {
                 if ((y - y_prev) <= 1) {
@@ -423,12 +423,11 @@ contract StableSwapPool is
         uint256 dx
     ) external view returns (uint256 result) {
         // # dx and dy in c-units
-        uint256[] memory rates = RATES;
         uint256[] memory xp = _xp();
 
-        uint256 x = xp[i].add(dx.mul(rates[i]).div(PRECISION));
+        uint256 x = xp[i].add(dx.mul(RATES[i]).div(PRECISION));
         uint256 y = get_y(i, j, x, xp);
-        uint256 dy = xp[j].sub(y).sub(1).mul(PRECISION).div(rates[j]);
+        uint256 dy = xp[j].sub(y).sub(1).mul(PRECISION).div(RATES[j]);
         uint256 _fee = fee.mul(dy).div(FEE_DENOMINATOR);
         result = dy.sub(_fee);
     }
@@ -456,10 +455,8 @@ contract StableSwapPool is
         uint256 min_dy
     ) external nonReentrant {
         require(is_killed == false, "dev: is killed");
-        uint256[] memory rates = RATES;
 
-        uint256[] memory old_balances = balances;
-        uint256[] memory xp = _xp_mem(old_balances);
+        uint256[] memory xp = _xp_mem(balances);
 
         // # Handling an unexpected charge of a fee on transfer (USDT, PAXG)
         uint256 dx_w_fee = dx;
@@ -479,23 +476,23 @@ contract StableSwapPool is
                 dx_w_fee
             );
         }
-        uint256 x = xp[i].add(dx_w_fee.mul(rates[i]).div(PRECISION));
+        uint256 x = xp[i].add(dx_w_fee.mul(RATES[i]).div(PRECISION));
         uint256 y = get_y(i, j, x, xp);
 
         uint256 dy = xp[j].sub(y).sub(uint256(1)); // # -1 just in case there were some rounding errors
         uint256 dy_fee = dy.mul(fee).div(FEE_DENOMINATOR);
 
         // # Convert all to real units
-        dy = dy.sub(dy_fee).mul(PRECISION).div(rates[j]);
+        dy = dy.sub(dy_fee).mul(PRECISION).div(RATES[j]);
         require(dy >= min_dy, "Exchange resulted in fewer coins than expected");
 
         uint256 dy_admin_fee = dy_fee.mul(admin_fee).div(FEE_DENOMINATOR);
-        dy_admin_fee = dy_admin_fee.mul(PRECISION).div(rates[j]);
+        dy_admin_fee = dy_admin_fee.mul(PRECISION).div(RATES[j]);
 
         // # Change balances exactly in same way as we change actual ERC20 coin amounts
-        balances[i] = old_balances[i].add(dx_w_fee);
+        balances[i] = balances[i].add(dx_w_fee);
         // # When rounding errors happen, we undercharge admin fee in favor of LP
-        balances[j] = old_balances[j].sub(dy).sub(dy_admin_fee);
+        balances[j] = balances[j].sub(dy).sub(dy_admin_fee);
         SafeBEP20.safeTransfer(IBEP20(coins[j]), msg.sender, dy);
         emit TokenExchange(msg.sender, i, dx, j, dy);
     }
@@ -517,7 +514,7 @@ contract StableSwapPool is
             amounts[i] = value;
             SafeBEP20.safeTransfer(IBEP20(coins[i]), msg.sender, value);
         }
-        token.burn(msg.sender, _amount); // # dev: insufficient funds
+        token.burnFrom(msg.sender, _amount); // # dev: insufficient funds
 
         emit RemoveLiquidity(msg.sender, amounts, fees, total_supply - _amount);
     }
@@ -528,10 +525,9 @@ contract StableSwapPool is
     ) external nonReentrant {
         require(is_killed == false, "is killed"); //not self.  # dev: is killed
 
-        uint256 token_supply = token.totalSupply();
-        require(token_supply != 0, "  # dev: zero total supply");
+        require(token.totalSupply() != 0, "  # dev: zero total supply");
         uint256 _fee = fee.mul(N_COINS).div(N_COINS.sub(1).mul(4));
-        uint256 _admin_fee = admin_fee;
+        // uint256 _admin_fee = admin_fee;
         uint256 amp = _A();
 
         uint256[] memory old_balances = balances;
@@ -552,18 +548,18 @@ contract StableSwapPool is
             }
             fees[i] = _fee.mul(difference).div(FEE_DENOMINATOR);
             balances[i] = new_balances[i].sub(
-                fees[i].mul(_admin_fee).div(FEE_DENOMINATOR)
+                fees[i].mul(admin_fee).div(FEE_DENOMINATOR)
             );
             new_balances[i] = new_balances[i].sub(fees[i]);
         }
         uint256 D2 = get_D_mem(new_balances, amp);
 
-        uint256 token_amount = D0.sub(D2).mul(token_supply).div(D0);
+        uint256 token_amount = D0.sub(D2).mul(token.totalSupply()).div(D0);
         require(token_amount != 0, " # dev: zero tokens burned");
         token_amount += 1; //  # In case of rounding errors - make it unfavorable for the "attacker"
         require(token_amount <= max_burn_amount, "Slippage screwed you");
 
-        token.burn(msg.sender, token_amount); //  # dev: insufficient funds
+        token.burnFrom(msg.sender, token_amount); //  # dev: insufficient funds
         for (uint256 i = 0; i < N_COINS; i++) {
             if (amounts[i] != 0) {
                 SafeBEP20.safeTransfer(
@@ -578,7 +574,7 @@ contract StableSwapPool is
             amounts,
             fees,
             D1,
-            token_supply - token_amount
+            token.totalSupply() - token_amount
         );
     }
 
@@ -587,7 +583,7 @@ contract StableSwapPool is
         uint256 i,
         uint256[] memory xp,
         uint256 D
-    ) internal view returns (uint256 y) {
+    ) internal pure returns (uint256 y) {
         //Calculate x[i] if one reduces D from being calculated for xp to D
         // Done by solving quadratic equation iteratively.
         // x_1**2 + x1 * (sum' - (A*n**n - 1) * D / (A * n**n)) = D ** (n + 1) / (n ** (2 * n) * prod' * A)
@@ -642,17 +638,15 @@ contract StableSwapPool is
         // # * Solve Eqn against y_i for D - _token_amount
         uint256 amp = _A();
         uint256 _fee = fee.mul(N_COINS).div(4 * (N_COINS - 1));
-        uint256[] memory precisions = PRECISION_MUL;
-        uint256 total_supply = token.totalSupply();
 
         uint256[] memory xp = _xp();
 
         uint256 D0 = get_D(xp, amp);
-        uint256 D1 = D0.sub(_token_amount.mul(D0).div(total_supply));
+        uint256 D1 = D0.sub(_token_amount.mul(D0).div(token.totalSupply()));
         uint256[] memory xp_reduced = xp;
 
         uint256 new_y = get_y_D(amp, i, xp, D1);
-        uint256 dy_0 = xp[i].sub(new_y).div(precisions[i]); //# w/o fees
+        uint256 dy_0 = xp[i].sub(new_y).div(PRECISION_MUL[i]); //# w/o fees
 
         for (uint256 j = 0; j < N_COINS; j++) {
             uint256 dx_expected = 0;
@@ -666,7 +660,7 @@ contract StableSwapPool is
             );
         }
         uint256 dy = xp_reduced[i].sub(get_y_D(amp, i, xp_reduced, D1));
-        dy = dy.sub(uint256(1)).div(precisions[i]); // # Withdraw less to account for rounding errors
+        dy = dy.sub(uint256(1)).div(PRECISION_MUL[i]); // # Withdraw less to account for rounding errors
         r1 = dy;
         r2 = dy_0 - dy;
     }
@@ -677,5 +671,170 @@ contract StableSwapPool is
         returns (uint256 result)
     {
         (result, ) = _calc_withdraw_one_coin(_token_amount, i);
+    }
+
+    function remove_liquidity_one_coin(
+        uint256 _token_amount,
+        uint256 i,
+        uint256 min_amount
+    ) external nonReentrant {
+        // Remove _amount of liquidity all in a form of coin i
+        require(is_killed == false, " # dev: is killed");
+        uint256 dy = 0;
+        uint256 dy_fee = 0;
+        (dy, dy_fee) = _calc_withdraw_one_coin(_token_amount, i);
+        require(dy >= min_amount, "Not enough coins removed");
+
+        balances[i] = balances[i].sub(
+            dy.add(dy_fee.mul(admin_fee).div(FEE_DENOMINATOR))
+        );
+        token.burnFrom(msg.sender, _token_amount); //# dev: insufficient funds
+        SafeBEP20.safeTransfer(IBEP20(coins[i]), msg.sender, dy);
+        emit RemoveLiquidityOne(msg.sender, _token_amount, dy);
+    }
+
+    function ramp_A(uint256 _future_A, uint256 _future_time)
+        external
+        onlyOwner
+    {
+        require(
+            block.timestamp >= initial_A_time + MIN_RAMP_TIME,
+            "block.timestamp >= self.initial_A_time + MIN_RAMP_TIME"
+        );
+        require(
+            _future_time >= block.timestamp + MIN_RAMP_TIME,
+            "  # dev: insufficient time"
+        );
+
+        uint256 _initial_A = _A();
+        require(
+            (_future_A > 0) && (_future_A < MAX_A),
+            "(_future_A > 0) && (_future_A < MAX_A)"
+        );
+        require(
+            ((_future_A >= _initial_A) &&
+                (_future_A <= _initial_A * MAX_A_CHANGE)) ||
+                ((_future_A < _initial_A) &&
+                    (_future_A * MAX_A_CHANGE >= _initial_A)),
+            "complex conditions"
+        );
+        initial_A = _initial_A;
+        future_A = _future_A;
+        initial_A_time = block.timestamp;
+        future_A_time = _future_time;
+
+        emit RampA(_initial_A, _future_A, block.timestamp, _future_time);
+    }
+
+    function stop_ramp_A() external onlyOwner {
+        uint256 current_A = _A();
+        initial_A = current_A;
+        future_A = current_A;
+        initial_A_time = block.timestamp;
+        future_A_time = block.timestamp;
+        // # now (block.timestamp < t1) is always False, so we return saved A
+
+        emit StopRampA(current_A, block.timestamp);
+    }
+
+    function commit_new_fee(uint256 new_fee, uint256 new_admin_fee)
+        external
+        onlyOwner
+    {
+        require(admin_actions_deadline == 0, "  # dev: active action");
+        require(new_fee <= MAX_FEE, "  # dev: fee exceeds maximum");
+        require(
+            new_admin_fee <= MAX_ADMIN_FEE,
+            "  # dev: admin fee exceeds maximum"
+        );
+
+        uint256 _deadline = block.timestamp + ADMIN_ACTIONS_DELAY;
+        admin_actions_deadline = _deadline;
+        future_fee = new_fee;
+        future_admin_fee = new_admin_fee;
+
+        emit CommitNewFee(_deadline, new_fee, new_admin_fee);
+    }
+
+    function apply_new_fee() external onlyOwner {
+        require(
+            block.timestamp >= admin_actions_deadline,
+            "  # dev: insufficient time"
+        );
+        require(admin_actions_deadline != 0, "  # dev: no active action");
+
+        admin_actions_deadline = 0;
+        uint256 _fee = future_fee;
+        uint256 _admin_fee = future_admin_fee;
+        fee = _fee;
+        admin_fee = _admin_fee;
+
+        emit NewFee(_fee, _admin_fee);
+    }
+
+    function revert_new_parameters() external onlyOwner {
+        admin_actions_deadline = 0;
+    }
+
+    function commit_transfer_ownership(address _owner) external onlyOwner {
+        require(transfer_ownership_deadline == 0, "  # dev: active transfer");
+
+        uint256 _deadline = block.timestamp + ADMIN_ACTIONS_DELAY;
+        transfer_ownership_deadline = _deadline;
+        future_owner = _owner;
+
+        emit CommitNewAdmin(_deadline, _owner);
+    }
+
+    function apply_transfer_ownership() external onlyOwner {
+        require(
+            block.timestamp >= transfer_ownership_deadline,
+            "  # dev: insufficient time"
+        );
+        require(
+            transfer_ownership_deadline != 0,
+            "  # dev: no active transfer"
+        );
+
+        transfer_ownership_deadline = 0;
+        transferOwnership(future_owner);
+
+        emit NewAdmin(future_owner);
+    }
+
+    function revert_transfer_ownership() external onlyOwner {
+        transfer_ownership_deadline = 0;
+    }
+
+    function admin_balances(uint256 i) external view returns (uint256 balance) {
+        balance = IBEP20(coins[i]).balanceOf(address(this)).sub(balances[i]);
+    }
+
+    function withdraw_admin_fees() external onlyOwner {
+        for (uint256 i = 0; i < N_COINS; i++) {
+            address c = coins[i];
+            uint256 value = IBEP20(c).balanceOf(address(this)).sub(balances[i]);
+            if (value > 0) {
+                SafeBEP20.safeTransfer(IBEP20(c), msg.sender, value);
+            }
+        }
+    }
+
+    function donate_admin_fees() external onlyOwner {
+        for (uint256 i = 0; i < N_COINS; i++) {
+            balances[i] = IBEP20(coins[i]).balanceOf(address(this));
+        }
+    }
+
+    function kill_me() external onlyOwner {
+        require(
+            kill_deadline > block.timestamp,
+            "  # dev: deadline has passed"
+        );
+        is_killed = true;
+    }
+
+    function unkill_me() external onlyOwner {
+        is_killed = false;
     }
 }
