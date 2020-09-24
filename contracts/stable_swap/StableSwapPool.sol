@@ -7,15 +7,9 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "../lib/SafeBEP20.sol";
 
-interface ISSWAPToken is IBEP20 {
-    function mint(address to, uint256 amt) external;
-
-    function burnFrom(address from, uint256 amt) external;
-}
-
-// 本交换池仅支持bsc链上的 USDT，DAI，BUSD 兑换
+// 本交换池仅支持bsc链上的 DAI，USDT, BUSD 兑换
 contract StableSwapPool is
-    BEP20("Smart Stable Swap Pool 1", "SSSP_1"),
+    BEP20("Smart Stable Swap Pool", "sSSLP"),
     Ownable,
     ReentrancyGuard
 {
@@ -26,11 +20,11 @@ contract StableSwapPool is
     uint256 private FEE_DENOMINATOR = 10**10;
     uint256 private LENDING_PRECISION = 10**18;
     uint256 private PRECISION = 10**18; // The precision to convert to
-    uint256[] private PRECISION_MUL = [1, 1000000000000, 1000000000000];
+    uint256[] private PRECISION_MUL = [1, 1, 1];
     uint256[] private RATES = [
         1000000000000000000,
-        1000000000000000000000000000000,
-        1000000000000000000000000000000
+        1000000000000000000,
+        1000000000000000000
     ];
     uint256 private FEE_INDEX = 2; // Which coin may potentially have fees (USDT)
 
@@ -46,8 +40,6 @@ contract StableSwapPool is
     uint256[] balances;
     uint256 fee; // fee * 1e10
     uint256 admin_fee; // admin_fee * 1e10
-
-    ISSWAPToken token;
 
     uint256 initial_A;
     uint256 future_A;
@@ -120,7 +112,6 @@ contract StableSwapPool is
 
     constructor(
         address[] memory _coins,
-        address _token,
         uint256 _A,
         uint256 _fee,
         uint256 _admin_fee
@@ -135,7 +126,6 @@ contract StableSwapPool is
         fee = _fee;
         admin_fee = _admin_fee;
         kill_deadline = block.timestamp + KILL_DEADLINE_DT;
-        token = ISSWAPToken(_token);
     }
 
     function _A() internal view returns (uint256 A1) {
@@ -160,6 +150,14 @@ contract StableSwapPool is
             // retrun A1
         }
     }
+
+    // overide
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {}
 
     function A() external view returns (uint256 A1) {
         A1 = _A();
@@ -240,7 +238,7 @@ contract StableSwapPool is
         uint256 D = get_D(_xp(), _A());
         // # D is in the units similar to DAI (e.g. converted to precision 1e18)
         // # When balanced, D = n * x_u - total virtual value of the portfolio
-        uint256 token_supply = token.totalSupply();
+        uint256 token_supply = totalSupply();
         price = D.mul(PRECISION).div(token_supply);
     }
 
@@ -264,7 +262,7 @@ contract StableSwapPool is
             }
         }
         uint256 D1 = get_D_mem(_balances, amp);
-        uint256 token_amount = token.totalSupply();
+        uint256 token_amount = totalSupply();
         uint256 diff = 0;
         if (deposit) {
             diff = D1.sub(D0);
@@ -286,13 +284,13 @@ contract StableSwapPool is
         // # Initial invariant
         uint256 D0 = 0;
         uint256[] memory old_balances = balances;
-        if (token.totalSupply() > 0) {
+        if (totalSupply() > 0) {
             D0 = get_D_mem(old_balances, amp);
         }
         uint256[] memory new_balances = old_balances;
         for (uint256 i = 0; i < coins.length; i++) {
             uint256 in_amount = amounts[i];
-            if (token.totalSupply() == 0) {
+            if (totalSupply() == 0) {
                 require(in_amount > 0, "initial deposit requires all coins"); // # dev: initial deposit requires all coins
             }
             address in_coin = coins[i];
@@ -322,7 +320,7 @@ contract StableSwapPool is
         // # We need to recalculate the invariant accounting for fees
         // # to calculate fair user's share
         uint256 D2 = D1;
-        if (token.totalSupply() > 0) {
+        if (totalSupply() > 0) {
             for (uint256 i = 0; i < coins.length; i++) {
                 uint256 ideal_balance = D1.mul(old_balances[i]).div(D0);
                 uint256 difference = 0;
@@ -343,23 +341,23 @@ contract StableSwapPool is
         }
         // # Calculate, how much pool tokens to mint
         uint256 mint_amount = 0;
-        if (token.totalSupply() == 0) {
+        if (totalSupply() == 0) {
             mint_amount = D1; //# Take the dust if there was any
         } else {
-            mint_amount = token.totalSupply().mul(D2.sub(D0)).div(D0);
+            mint_amount = totalSupply().mul(D2.sub(D0)).div(D0);
         }
 
         require(mint_amount >= min_mint_amount, "Slippage screwed you");
 
         // # Mint pool tokens
-        token.mint(msg.sender, mint_amount);
+        _mint(msg.sender, mint_amount);
 
         emit AddLiquidity(
             msg.sender,
             amounts,
             fees,
             D1,
-            token.totalSupply() + mint_amount
+            totalSupply() + mint_amount
         );
     }
 
@@ -501,7 +499,7 @@ contract StableSwapPool is
         external
         nonReentrant
     {
-        uint256 total_supply = token.totalSupply();
+        uint256 total_supply = totalSupply();
         uint256[] memory amounts = new uint256[](N_COINS);
         uint256[] memory fees = new uint256[](N_COINS); //  # Fees are unused but we've got them historically in event
         for (uint256 i = 0; i < coins.length; i++) {
@@ -514,7 +512,7 @@ contract StableSwapPool is
             amounts[i] = value;
             SafeBEP20.safeTransfer(IBEP20(coins[i]), msg.sender, value);
         }
-        token.burnFrom(msg.sender, _amount); // # dev: insufficient funds
+        _burn(msg.sender, _amount); // # dev: insufficient funds
 
         emit RemoveLiquidity(msg.sender, amounts, fees, total_supply - _amount);
     }
@@ -525,7 +523,7 @@ contract StableSwapPool is
     ) external nonReentrant {
         require(is_killed == false, "is killed"); //not self.  # dev: is killed
 
-        require(token.totalSupply() != 0, "  # dev: zero total supply");
+        require(totalSupply() != 0, "  # dev: zero total supply");
         uint256 _fee = fee.mul(N_COINS).div(N_COINS.sub(1).mul(4));
         // uint256 _admin_fee = admin_fee;
         uint256 amp = _A();
@@ -554,12 +552,12 @@ contract StableSwapPool is
         }
         uint256 D2 = get_D_mem(new_balances, amp);
 
-        uint256 token_amount = D0.sub(D2).mul(token.totalSupply()).div(D0);
+        uint256 token_amount = D0.sub(D2).mul(totalSupply()).div(D0);
         require(token_amount != 0, " # dev: zero tokens burned");
         token_amount += 1; //  # In case of rounding errors - make it unfavorable for the "attacker"
         require(token_amount <= max_burn_amount, "Slippage screwed you");
 
-        token.burnFrom(msg.sender, token_amount); //  # dev: insufficient funds
+        _burn(msg.sender, token_amount); //  # dev: insufficient funds
         for (uint256 i = 0; i < N_COINS; i++) {
             if (amounts[i] != 0) {
                 SafeBEP20.safeTransfer(
@@ -574,7 +572,7 @@ contract StableSwapPool is
             amounts,
             fees,
             D1,
-            token.totalSupply() - token_amount
+            totalSupply() - token_amount
         );
     }
 
@@ -642,7 +640,7 @@ contract StableSwapPool is
         uint256[] memory xp = _xp();
 
         uint256 D0 = get_D(xp, amp);
-        uint256 D1 = D0.sub(_token_amount.mul(D0).div(token.totalSupply()));
+        uint256 D1 = D0.sub(_token_amount.mul(D0).div(totalSupply()));
         uint256[] memory xp_reduced = xp;
 
         uint256 new_y = get_y_D(amp, i, xp, D1);
@@ -688,8 +686,7 @@ contract StableSwapPool is
         balances[i] = balances[i].sub(
             dy.add(dy_fee.mul(admin_fee).div(FEE_DENOMINATOR))
         );
-        token.approve(address(this), _token_amount);
-        token.burnFrom(msg.sender, _token_amount); //# dev: insufficient funds
+        _burn(msg.sender, _token_amount); //# dev: insufficient funds
         SafeBEP20.safeTransfer(IBEP20(coins[i]), msg.sender, dy);
         emit RemoveLiquidityOne(msg.sender, _token_amount, dy);
     }

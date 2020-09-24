@@ -4,7 +4,8 @@ import "./BEP20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract SmartSwapToken is BEP20("Smart Swap", "SSWAP"), Ownable {
+// DAO token
+contract SmartSwapToken is BEP20("Smart Swap Token", "SSWAP"), Ownable {
     using SafeMath for uint256;
 
     address minter;
@@ -73,5 +74,4 @@ contract SmartSwapToken is BEP20("Smart Swap", "SSWAP"), Ownable {
         _approve(account, _msgSender(), decreasedAllowance);
         _burn(account, amount);
     }
-
 }
