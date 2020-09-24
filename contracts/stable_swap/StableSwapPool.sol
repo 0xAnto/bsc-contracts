@@ -752,7 +752,7 @@ contract StableSwapPool is
         (dy, dy_fee) = _calc_withdraw_one_coin(_token_amount, i);
         require(dy >= min_amount, "Not enough coins removed");
 
-    // self.balances[i] -= (dy + dy_fee * self.admin_fee / FEE_DENOMINATOR)
+        // self.balances[i] -= (dy + dy_fee * self.admin_fee / FEE_DENOMINATOR)
         balances[i] = balances[i].sub(
             dy.add(dy_fee.mul(admin_fee).div(FEE_DENOMINATOR))
         );
