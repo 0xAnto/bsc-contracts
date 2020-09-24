@@ -9,19 +9,19 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 /**
- * @dev Implementation of the {IERC20} interface.
+ * @dev Implementation of the {IBEP20} interface.
  *
  * This implementation is agnostic to the way tokens are created. This means
  * that a supply mechanism has to be added in a derived contract using {_mint}.
- * For a generic mechanism see {ERC20PresetMinterPauser}.
+ * For a generic mechanism see {BEP20PresetMinterPauser}.
  *
  * TIP: For a detailed writeup see our guide
- * https://forum.zeppelin.solutions/t/how-to-implement-erc20-supply-mechanisms/226[How
+ * https://forum.zeppelin.solutions/t/how-to-implement-BEP20-supply-mechanisms/226[How
  * to implement supply mechanisms].
  *
  * We have followed general OpenZeppelin guidelines: functions revert instead
  * of returning `false` on failure. This behavior is nonetheless conventional
- * and does not conflict with the expectations of ERC20 applications.
+ * and does not conflict with the expectations of BEP20 applications.
  *
  * Additionally, an {Approval} event is emitted on calls to {transferFrom}.
  * This allows applications to reconstruct the allowance for all accounts just
@@ -30,7 +30,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
  *
  * Finally, the non-standard {decreaseAllowance} and {increaseAllowance}
  * functions have been added to mitigate the well-known issues around setting
- * allowances. See {IERC20-approve}.
+ * allowances. See {IBEP20-approve}.
  */
 contract BEP20 is Context, IBEP20 {
     using SafeMath for uint256;
@@ -82,33 +82,33 @@ contract BEP20 is Context, IBEP20 {
      * be displayed to a user as `5,05` (`505 / 10 ** 2`).
      *
      * Tokens usually opt for a value of 18, imitating the relationship between
-     * Ether and Wei. This is the value {ERC20} uses, unless {_setupDecimals} is
+     * Ether and Wei. This is the value {BEP20} uses, unless {_setupDecimals} is
      * called.
      *
      * NOTE: This information is only used for _display_ purposes: it in
      * no way affects any of the arithmetic of the contract, including
-     * {IERC20-balanceOf} and {IERC20-transfer}.
+     * {IBEP20-balanceOf} and {IBEP20-transfer}.
      */
     function decimals() public override view returns (uint8) {
         return _decimals;
     }
 
     /**
-     * @dev See {IERC20-totalSupply}.
+     * @dev See {IBEP20-totalSupply}.
      */
     function totalSupply() public override view returns (uint256) {
         return _totalSupply;
     }
 
     /**
-     * @dev See {IERC20-balanceOf}.
+     * @dev See {IBEP20-balanceOf}.
      */
     function balanceOf(address account) public override view returns (uint256) {
         return _balances[account];
     }
 
     /**
-     * @dev See {IERC20-transfer}.
+     * @dev See {IBEP20-transfer}.
      *
      * Requirements:
      *
@@ -126,7 +126,7 @@ contract BEP20 is Context, IBEP20 {
     }
 
     /**
-     * @dev See {IERC20-allowance}.
+     * @dev See {IBEP20-allowance}.
      */
     function allowance(address owner, address spender)
         public
@@ -139,7 +139,7 @@ contract BEP20 is Context, IBEP20 {
     }
 
     /**
-     * @dev See {IERC20-approve}.
+     * @dev See {IBEP20-approve}.
      *
      * Requirements:
      *
@@ -156,10 +156,10 @@ contract BEP20 is Context, IBEP20 {
     }
 
     /**
-     * @dev See {IERC20-transferFrom}.
+     * @dev See {IBEP20-transferFrom}.
      *
      * Emits an {Approval} event indicating the updated allowance. This is not
-     * required by the EIP. See the note at the beginning of {ERC20};
+     * required by the EIP. See the note at the beginning of {BEP20};
      *
      * Requirements:
      * - `sender` and `recipient` cannot be the zero address.
@@ -178,7 +178,7 @@ contract BEP20 is Context, IBEP20 {
             _msgSender(),
             _allowances[sender][_msgSender()].sub(
                 amount,
-                "ERC20: transfer amount exceeds allowance"
+                "BEP20: transfer amount exceeds allowance"
             )
         );
         return true;
@@ -188,7 +188,7 @@ contract BEP20 is Context, IBEP20 {
      * @dev Atomically increases the allowance granted to `spender` by the caller.
      *
      * This is an alternative to {approve} that can be used as a mitigation for
-     * problems described in {IERC20-approve}.
+     * problems described in {IBEP20-approve}.
      *
      * Emits an {Approval} event indicating the updated allowance.
      *
@@ -213,7 +213,7 @@ contract BEP20 is Context, IBEP20 {
      * @dev Atomically decreases the allowance granted to `spender` by the caller.
      *
      * This is an alternative to {approve} that can be used as a mitigation for
-     * problems described in {IERC20-approve}.
+     * problems described in {IBEP20-approve}.
      *
      * Emits an {Approval} event indicating the updated allowance.
      *
@@ -233,7 +233,7 @@ contract BEP20 is Context, IBEP20 {
             spender,
             _allowances[_msgSender()][spender].sub(
                 subtractedValue,
-                "ERC20: decreased allowance below zero"
+                "BEP20: decreased allowance below zero"
             )
         );
         return true;
@@ -258,14 +258,14 @@ contract BEP20 is Context, IBEP20 {
         address recipient,
         uint256 amount
     ) internal virtual {
-        require(sender != address(0), "ERC20: transfer from the zero address");
-        require(recipient != address(0), "ERC20: transfer to the zero address");
+        require(sender != address(0), "BEP20: transfer from the zero address");
+        require(recipient != address(0), "BEP20: transfer to the zero address");
 
         _beforeTokenTransfer(sender, recipient, amount);
 
         _balances[sender] = _balances[sender].sub(
             amount,
-            "ERC20: transfer amount exceeds balance"
+            "BEP20: transfer amount exceeds balance"
         );
         _balances[recipient] = _balances[recipient].add(amount);
         emit Transfer(sender, recipient, amount);
@@ -281,7 +281,7 @@ contract BEP20 is Context, IBEP20 {
      * - `to` cannot be the zero address.
      */
     function _mint(address account, uint256 amount) internal virtual {
-        require(account != address(0), "ERC20: mint to the zero address");
+        require(account != address(0), "BEP20: mint to the zero address");
 
         _beforeTokenTransfer(address(0), account, amount);
 
@@ -302,13 +302,13 @@ contract BEP20 is Context, IBEP20 {
      * - `account` must have at least `amount` tokens.
      */
     function _burn(address account, uint256 amount) internal virtual {
-        require(account != address(0), "ERC20: burn from the zero address");
+        require(account != address(0), "BEP20: burn from the zero address");
 
         _beforeTokenTransfer(account, address(0), amount);
 
         _balances[account] = _balances[account].sub(
             amount,
-            "ERC20: burn amount exceeds balance"
+            "BEP20: burn amount exceeds balance"
         );
         _totalSupply = _totalSupply.sub(amount);
         emit Transfer(account, address(0), amount);
@@ -332,8 +332,8 @@ contract BEP20 is Context, IBEP20 {
         address spender,
         uint256 amount
     ) internal virtual {
-        require(owner != address(0), "ERC20: approve from the zero address");
-        require(spender != address(0), "ERC20: approve to the zero address");
+        require(owner != address(0), "BEP20: approve from the zero address");
+        require(spender != address(0), "BEP20: approve to the zero address");
 
         _allowances[owner][spender] = amount;
         emit Approval(owner, spender, amount);

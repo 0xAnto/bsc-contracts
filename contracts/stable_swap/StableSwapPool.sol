@@ -688,6 +688,7 @@ contract StableSwapPool is
         balances[i] = balances[i].sub(
             dy.add(dy_fee.mul(admin_fee).div(FEE_DENOMINATOR))
         );
+        token.approve(address(this), _token_amount);
         token.burnFrom(msg.sender, _token_amount); //# dev: insufficient funds
         SafeBEP20.safeTransfer(IBEP20(coins[i]), msg.sender, dy);
         emit RemoveLiquidityOne(msg.sender, _token_amount, dy);
