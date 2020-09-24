@@ -9,7 +9,7 @@ import "../lib/SafeBEP20.sol";
 
 // 本交换池仅支持bsc链上的 DAI，USDT, BUSD 兑换
 contract StableSwapPool is
-    BEP20("Smart Stable Swap Pool", "sSSLP"),
+    BEP20("Stable Smart Swap Pool", "sSSLP"),
     Ownable,
     ReentrancyGuard
 {
@@ -212,8 +212,8 @@ contract StableSwapPool is
             }
             Dprev = D;
             // D = (Ann * S + D_P * N_COINS) * D / ((Ann - 1) * D + (N_COINS + 1) * D_P)
-            uint256 numerator = Ann.mul(S).add(
-                D_P.mul(uint256(N_COINS)).mul(D)
+            uint256 numerator = Ann.mul(S).add(D_P.mul(uint256(N_COINS))).mul(
+                D
             );
             uint256 denominator = Ann.sub(uint256(1)).mul(D).add(
                 uint256(N_COINS + 1).mul(D_P)
@@ -279,7 +279,7 @@ contract StableSwapPool is
             // diff = D1 - D0
             diff = D1.sub(D0);
         } else {
-            // diff = D0.sub(D1);
+            diff = D0.sub(D1);
         }
         // return diff * token_amount / D0
         result = diff.mul(token_amount).div(D0);
@@ -302,7 +302,7 @@ contract StableSwapPool is
             D0 = get_D_mem(old_balances, amp);
         }
         uint256[] memory new_balances = old_balances;
-        for (uint256 i = 0; i < coins.length; i++) {
+        for (uint256 i = 0; i < N_COINS; i++) {
             uint256 in_amount = amounts[i];
             if (totalSupply() == 0) {
                 require(in_amount > 0, "initial deposit requires all coins"); // # dev: initial deposit requires all coins
@@ -459,7 +459,6 @@ contract StableSwapPool is
         uint256 dy = xp[j].sub(y).sub(1).mul(PRECISION).div(RATES[j]);
         // _fee: uint256 = self.fee * dy / FEE_DENOMINATOR
         uint256 _fee = fee.mul(dy).div(FEE_DENOMINATOR);
-        // _fee: uint256 = self.fee * dy / FEE_DENOMINATOR
         result = dy.sub(_fee);
     }
 
