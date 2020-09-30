@@ -21,8 +21,8 @@ contract('Stable Smart Swap Pool', async accounts => {
     let usdtContract: any;
 
     before('获取发布的Smart Swap合约实例', async () => {
-        stableSmartSwapPool = await StableSwapPoolContract.deployed();
-        // stableSmartSwapPool = await StableSwapPoolContract.at('0xbD5782103F1eFA8A4B504edf1ffA0AAe5B2CD85B');
+        // stableSmartSwapPool = await StableSwapPoolContract.deployed();
+        stableSmartSwapPool = await StableSwapPoolContract.at('0x936EaEB69174e9f67b07213890DF8E0c29A71c83');
         console.log('address: ' + stableSmartSwapPool.address);
         decimal = await stableSmartSwapPool.decimals();
         console.log('decimals: ' + decimal);
@@ -53,22 +53,22 @@ contract('Stable Smart Swap Pool', async accounts => {
             console.log('Get LP: ' + lpAmt.toFormat());
             expect(lpAmt.comparedTo(new BigNumber(0))).equal(1);
         });
-        it('添加流动性-2', async () => {
-            let amt1 = web3.utils.toWei('1', 'ether');
-            let amt2 = web3.utils.toWei('0.3', 'ether');
-            let amt3 = web3.utils.toWei('0.7', 'ether');
-            await daiContract.methods.approve(stableSmartSwapPool.address, amt1).send({ from: accounts[0] });
-            await busdContract.methods.approve(stableSmartSwapPool.address, amt2).send({ from: accounts[0] });
-            await usdtContract.methods.approve(stableSmartSwapPool.address, amt3).send({ from: accounts[0] });
-            await stableSmartSwapPool.add_liquidity([amt1, amt2, amt3], 0);
-            let lpAmt = await stableSmartSwapPool.balanceOf(accounts[0]);
-            lpAmt = new BigNumber(lpAmt.toString());
-            console.log('Get LP: ' + lpAmt.toFormat());
-            let virtualPrice = await stableSmartSwapPool.get_virtual_price();
-            virtualPrice = new BigNumber(virtualPrice.toString());
-            console.log('Virtual Price: ' + virtualPrice.toFormat());
-            expect(lpAmt.comparedTo(new BigNumber(0))).equal(1);
-        });
+        // it('添加流动性-2', async () => {
+        //     let amt1 = web3.utils.toWei('1', 'ether');
+        //     let amt2 = web3.utils.toWei('0.3', 'ether');
+        //     let amt3 = web3.utils.toWei('0.7', 'ether');
+        //     await daiContract.methods.approve(stableSmartSwapPool.address, amt1).send({ from: accounts[0] });
+        //     await busdContract.methods.approve(stableSmartSwapPool.address, amt2).send({ from: accounts[0] });
+        //     await usdtContract.methods.approve(stableSmartSwapPool.address, amt3).send({ from: accounts[0] });
+        //     await stableSmartSwapPool.add_liquidity([amt1, amt2, amt3], 0);
+        //     let lpAmt = await stableSmartSwapPool.balanceOf(accounts[0]);
+        //     lpAmt = new BigNumber(lpAmt.toString());
+        //     console.log('Get LP: ' + lpAmt.toFormat());
+        //     let virtualPrice = await stableSmartSwapPool.get_virtual_price();
+        //     virtualPrice = new BigNumber(virtualPrice.toString());
+        //     console.log('Virtual Price: ' + virtualPrice.toFormat());
+        //     expect(lpAmt.comparedTo(new BigNumber(0))).equal(1);
+        // });
         it('兑换，DAI->BUSD', async () => {
             let amt = web3.utils.toWei('0.5', 'ether');
             let pBalance = await busdContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
@@ -82,71 +82,71 @@ contract('Stable Smart Swap Pool', async accounts => {
             console.log("amt: " + aBalance.minus(pBalance).toFormat());
             expect(aBalance.comparedTo(pBalance)).equal(1);
         });
-        it('兑换，DAI->USDT', async () => {
-            let amt = web3.utils.toWei('0.5', 'ether');
-            let pBalance = await usdtContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
-            pBalance = new BigNumber(pBalance.toString());
-            console.log('pBalance: ' + pBalance.toFormat());
-            await daiContract.methods.approve(stableSmartSwapPool.address, amt).send({ from: accounts[0] });
-            await stableSmartSwapPool.exchange(0, 2, amt, 0);
-            let aBalance = await usdtContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
-            aBalance = new BigNumber(aBalance.toString());
-            console.log('aBalance: ' + aBalance.toFormat());
-            console.log("amt: " + aBalance.minus(pBalance).toFormat());
-            expect(aBalance.comparedTo(pBalance)).equal(1);
-        });
-        it('兑换，BUSD->DAI', async () => {
-            let amt = web3.utils.toWei('0.5', 'ether');
-            let pBalance = await daiContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
-            pBalance = new BigNumber(pBalance.toString());
-            console.log('pBalance: ' + pBalance.toFormat());
-            await busdContract.methods.approve(stableSmartSwapPool.address, amt).send({ from: accounts[0] });
-            await stableSmartSwapPool.exchange(1, 0, amt, 0);
-            let aBalance = await daiContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
-            aBalance = new BigNumber(aBalance.toString());
-            console.log('aBalance: ' + aBalance.toFormat());
-            console.log("amt: " + aBalance.minus(pBalance).toFormat());
-            expect(aBalance.comparedTo(pBalance)).equal(1);
-        });
-        it('兑换，BUSD->USDT', async () => {
-            let amt = web3.utils.toWei('0.5', 'ether');
-            let pBalance = await usdtContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
-            pBalance = new BigNumber(pBalance.toString());
-            console.log('pBalance: ' + pBalance.toFormat());
-            await busdContract.methods.approve(stableSmartSwapPool.address, amt).send({ from: accounts[0] });
-            await stableSmartSwapPool.exchange(1, 2, amt, 0);
-            let aBalance = await usdtContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
-            aBalance = new BigNumber(aBalance.toString());
-            console.log('aBalance: ' + aBalance.toFormat());
-            console.log("amt: " + aBalance.minus(pBalance).toFormat());
-            expect(aBalance.comparedTo(pBalance)).equal(1);
-        });
-        it('兑换，USDT->DAI', async () => {
-            let amt = web3.utils.toWei('0.5', 'ether');
-            let pBalance = await daiContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
-            pBalance = new BigNumber(pBalance.toString());
-            console.log('pBalance: ' + pBalance.toFormat());
-            await usdtContract.methods.approve(stableSmartSwapPool.address, amt).send({ from: accounts[0] });
-            await stableSmartSwapPool.exchange(2, 0, amt, 0);
-            let aBalance = await daiContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
-            aBalance = new BigNumber(aBalance.toString());
-            console.log('aBalance: ' + aBalance.toFormat());
-            console.log("amt: " + aBalance.minus(pBalance).toFormat());
-            expect(aBalance.comparedTo(pBalance)).equal(1);
-        });
-        it('兑换，USDT->BUSD', async () => {
-            let amt = web3.utils.toWei('0.5', 'ether');
-            let pBalance = await busdContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
-            pBalance = new BigNumber(pBalance.toString());
-            console.log('pBalance: ' + pBalance.toFormat());
-            await usdtContract.methods.approve(stableSmartSwapPool.address, amt).send({ from: accounts[0] });
-            await stableSmartSwapPool.exchange(2, 1, amt, 0);
-            let aBalance = await busdContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
-            aBalance = new BigNumber(aBalance.toString());
-            console.log('aBalance: ' + aBalance.toFormat());
-            console.log("amt: " + aBalance.minus(pBalance).toFormat());
-            expect(aBalance.comparedTo(pBalance)).equal(1);
-        });
+        // it('兑换，DAI->USDT', async () => {
+        //     let amt = web3.utils.toWei('0.5', 'ether');
+        //     let pBalance = await usdtContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
+        //     pBalance = new BigNumber(pBalance.toString());
+        //     console.log('pBalance: ' + pBalance.toFormat());
+        //     await daiContract.methods.approve(stableSmartSwapPool.address, amt).send({ from: accounts[0] });
+        //     await stableSmartSwapPool.exchange(0, 2, amt, 0);
+        //     let aBalance = await usdtContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
+        //     aBalance = new BigNumber(aBalance.toString());
+        //     console.log('aBalance: ' + aBalance.toFormat());
+        //     console.log("amt: " + aBalance.minus(pBalance).toFormat());
+        //     expect(aBalance.comparedTo(pBalance)).equal(1);
+        // });
+        // it('兑换，BUSD->DAI', async () => {
+        //     let amt = web3.utils.toWei('0.5', 'ether');
+        //     let pBalance = await daiContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
+        //     pBalance = new BigNumber(pBalance.toString());
+        //     console.log('pBalance: ' + pBalance.toFormat());
+        //     await busdContract.methods.approve(stableSmartSwapPool.address, amt).send({ from: accounts[0] });
+        //     await stableSmartSwapPool.exchange(1, 0, amt, 0);
+        //     let aBalance = await daiContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
+        //     aBalance = new BigNumber(aBalance.toString());
+        //     console.log('aBalance: ' + aBalance.toFormat());
+        //     console.log("amt: " + aBalance.minus(pBalance).toFormat());
+        //     expect(aBalance.comparedTo(pBalance)).equal(1);
+        // });
+        // it('兑换，BUSD->USDT', async () => {
+        //     let amt = web3.utils.toWei('0.5', 'ether');
+        //     let pBalance = await usdtContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
+        //     pBalance = new BigNumber(pBalance.toString());
+        //     console.log('pBalance: ' + pBalance.toFormat());
+        //     await busdContract.methods.approve(stableSmartSwapPool.address, amt).send({ from: accounts[0] });
+        //     await stableSmartSwapPool.exchange(1, 2, amt, 0);
+        //     let aBalance = await usdtContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
+        //     aBalance = new BigNumber(aBalance.toString());
+        //     console.log('aBalance: ' + aBalance.toFormat());
+        //     console.log("amt: " + aBalance.minus(pBalance).toFormat());
+        //     expect(aBalance.comparedTo(pBalance)).equal(1);
+        // });
+        // it('兑换，USDT->DAI', async () => {
+        //     let amt = web3.utils.toWei('0.5', 'ether');
+        //     let pBalance = await daiContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
+        //     pBalance = new BigNumber(pBalance.toString());
+        //     console.log('pBalance: ' + pBalance.toFormat());
+        //     await usdtContract.methods.approve(stableSmartSwapPool.address, amt).send({ from: accounts[0] });
+        //     await stableSmartSwapPool.exchange(2, 0, amt, 0);
+        //     let aBalance = await daiContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
+        //     aBalance = new BigNumber(aBalance.toString());
+        //     console.log('aBalance: ' + aBalance.toFormat());
+        //     console.log("amt: " + aBalance.minus(pBalance).toFormat());
+        //     expect(aBalance.comparedTo(pBalance)).equal(1);
+        // });
+        // it('兑换，USDT->BUSD', async () => {
+        //     let amt = web3.utils.toWei('0.5', 'ether');
+        //     let pBalance = await busdContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
+        //     pBalance = new BigNumber(pBalance.toString());
+        //     console.log('pBalance: ' + pBalance.toFormat());
+        //     await usdtContract.methods.approve(stableSmartSwapPool.address, amt).send({ from: accounts[0] });
+        //     await stableSmartSwapPool.exchange(2, 1, amt, 0);
+        //     let aBalance = await busdContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
+        //     aBalance = new BigNumber(aBalance.toString());
+        //     console.log('aBalance: ' + aBalance.toFormat());
+        //     console.log("amt: " + aBalance.minus(pBalance).toFormat());
+        //     expect(aBalance.comparedTo(pBalance)).equal(1);
+        // });
         it('赎回一个币，DAI', async () => {
             let amt = web3.utils.toWei('0.3', 'ether'); // 流动性代币的数量
             let pBalance = await daiContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
@@ -158,38 +158,38 @@ contract('Stable Smart Swap Pool', async accounts => {
             console.log("amt: " + aBalance.minus(pBalance).toFormat());
             expect(aBalance.comparedTo(pBalance)).equal(1);
         });
-        it('赎回一个币，BUSD', async () => {
-            let amt = web3.utils.toWei('0.3', 'ether'); // 流动性代币的数量
-            let pBalance = await busdContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
-            pBalance = new BigNumber(pBalance.toString());
-            console.log('pBalance: ' + pBalance.toFormat());
-            await stableSmartSwapPool.remove_liquidity_one_coin(amt, 1, 0);
-            let aBalance = await busdContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
-            aBalance = new BigNumber(aBalance.toString());
-            console.log("amt: " + aBalance.minus(pBalance).toFormat());
-            expect(aBalance.comparedTo(pBalance)).equal(1);
-        });
-        it('赎回一个币，USDT', async () => {
-            let amt = web3.utils.toWei('0.3', 'ether'); // 流动性代币的数量
-            let pBalance = await usdtContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
-            pBalance = new BigNumber(pBalance.toString());
-            console.log('pBalance: ' + pBalance.toFormat());
-            await stableSmartSwapPool.remove_liquidity_one_coin(amt, 2, 0);
-            let aBalance = await usdtContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
-            aBalance = new BigNumber(aBalance.toString());
-            console.log("amt: " + aBalance.minus(pBalance).toFormat());
-            expect(aBalance.comparedTo(pBalance)).equal(1);
-        });
+        // it('赎回一个币，BUSD', async () => {
+        //     let amt = web3.utils.toWei('0.3', 'ether'); // 流动性代币的数量
+        //     let pBalance = await busdContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
+        //     pBalance = new BigNumber(pBalance.toString());
+        //     console.log('pBalance: ' + pBalance.toFormat());
+        //     await stableSmartSwapPool.remove_liquidity_one_coin(amt, 1, 0);
+        //     let aBalance = await busdContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
+        //     aBalance = new BigNumber(aBalance.toString());
+        //     console.log("amt: " + aBalance.minus(pBalance).toFormat());
+        //     expect(aBalance.comparedTo(pBalance)).equal(1);
+        // });
+        // it('赎回一个币，USDT', async () => {
+        //     let amt = web3.utils.toWei('0.3', 'ether'); // 流动性代币的数量
+        //     let pBalance = await usdtContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
+        //     pBalance = new BigNumber(pBalance.toString());
+        //     console.log('pBalance: ' + pBalance.toFormat());
+        //     await stableSmartSwapPool.remove_liquidity_one_coin(amt, 2, 0);
+        //     let aBalance = await usdtContract.methods.balanceOf(accounts[0]).call({ from: accounts[0] });
+        //     aBalance = new BigNumber(aBalance.toString());
+        //     console.log("amt: " + aBalance.minus(pBalance).toFormat());
+        //     expect(aBalance.comparedTo(pBalance)).equal(1);
+        // });
         it('按币的数量赎回', async () => {
             let amt = web3.utils.toWei('0.05', 'ether');
             let maxBurnAmt = web3.utils.toWei('10', 'ether');
             await stableSmartSwapPool.remove_liquidity_imbalance([amt, amt, amt], maxBurnAmt);
         });
-        it('赎回全部流动性', async () => {
-            let lpBalance = await stableSmartSwapPool.balanceOf(accounts[0]);
-            lpBalance = new BigNumber(await lpBalance.toString());
-            await stableSmartSwapPool.remove_liquidity(lpBalance, [0, 0, 0]);
-        });
+        // it('赎回全部流动性', async () => {
+        //     let lpBalance = await stableSmartSwapPool.balanceOf(accounts[0]);
+        //     lpBalance = new BigNumber(await lpBalance.toString());
+        //     await stableSmartSwapPool.remove_liquidity(lpBalance, [0, 0, 0]);
+        // });
     });
 
 });
